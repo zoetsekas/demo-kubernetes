@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Ray Remote Demo",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/demo/main.py",
+            "console": "integratedTerminal",
+            "env": {
+                "RAY_ADDRESS": "ray://localhost:10001",
+                "GOOGLE_CLOUD_PROJECT": "${env:PROJECT_ID}",
+                "GCS_BUCKET_NAME": "${env:PROJECT_ID}-ml-data",
+                "KAGGLE_USERNAME": "${env:KAGGLE_USERNAME}",
+                "KAGGLE_KEY": "${env:KAGGLE_KEY}"
+            },
+            "justMyCode": true
+        }
+    ]
+}

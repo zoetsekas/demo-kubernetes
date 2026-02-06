@@ -1,0 +1,7 @@
+ray[serve,default]
+transformers
+torch
+google-cloud-storage
+kaggle
+pandas
+sentence-transformers

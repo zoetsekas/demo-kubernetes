@@ -1,0 +1,61 @@
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  name: ray-cluster
+  labels:
+    app: ray-cluster
+spec:
+  headGroupSpec:
+    serviceType: ClusterIP
+    rayStartParams:
+      dashboard-host: '0.0.0.0'
+    template:
+      spec:
+        containers:
+        - name: ray-head
+          image: us-central1-docker.pkg.dev/YOUR-PROJECT-ID/ml-images/ray-worker:latest
+          resources:
+            limits:
+              cpu: "2"
+              memory: "8Gi"
+              nvidia.com/gpu: "0" # Head node usually doesn't need GPU unless running tasks
+            requests:
+              cpu: "2"
+              memory: "8Gi"
+              nvidia.com/gpu: "0"
+          ports:
+          - containerPort: 6379
+            name: gcs-server
+          - containerPort: 8265 # Dashboard
+            name: dashboard
+          - containerPort: 10001 # Client
+            name: client
+          - containerPort: 8000 # Serve
+            name: serve
+  workerGroupSpecs:
+  - replicas: 1
+    minReplicas: 1
+    maxReplicas: 4
+    groupName: gpu-group
+    rayStartParams: {}
+    template:
+      spec:
+        containers:
+        - name: ray-worker
+          image: us-central1-docker.pkg.dev/YOUR-PROJECT-ID/ml-images/ray-worker:latest  # Placeholder, will need sed/envsubst
+          resources:
+            limits:
+              cpu: "4"
+              memory: "16Gi"
+              nvidia.com/gpu: "1"
+            requests:
+              cpu: "4"
+              memory: "16Gi"
+              nvidia.com/gpu: "1"
+          # Depending on GKE version/driver installation, might need tolerations
+        nodeSelector:
+            iam.gke.io/gke-metadata-server-enabled: "true"
+        tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
