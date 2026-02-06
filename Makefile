@@ -5,7 +5,7 @@ REPO_NAME ?= ml-images
 TAG ?= latest
 ARTIFACT_REGISTRY = $(REGION)-docker.pkg.dev/$(PROJECT_ID)/$(REPO_NAME)
 
-.PHONY: help init plan apply destroy build push run connect connect-mlflow
+.PHONY: help init plan apply destroy build push run connect connect-mlflow connect-grafana
 
 help: ## Show this help
 	@docker run --rm -v "$(CURDIR)":/app -w /app python:3.10-slim python -c "import re; [print(f'\033[36m{m.group(1):<20}\033[0m {m.group(2)}') for m in [re.search(r'^([a-zA-Z_-]+):.*?## (.*)$$', l) for l in open('makefile')] if m]"
@@ -40,6 +40,11 @@ connect-mlflow: ## Port forward to MLflow Server UI
 	@echo "Port forwarding to MLflow Service (localhost:5000)..."
 	@docker run --rm -it --network=host -v "$(APPDATA)/gcloud:/root/.config/gcloud" google/cloud-sdk:latest \
 		bash -c "gcloud container clusters get-credentials ai-cluster-dev --region $(REGION) --project $(PROJECT_ID) && kubectl port-forward svc/mlflow-service 5000:5000 -n ml-workloads"
+
+connect-grafana: ## Port forward to Grafana UI
+	@echo "Port forwarding to Grafana Service (localhost:3000)..."
+	@docker run --rm -it --network=host -v "$(APPDATA)/gcloud:/root/.config/gcloud" google/cloud-sdk:latest \
+		bash -c "gcloud container clusters get-credentials ai-cluster-dev --region $(REGION) --project $(PROJECT_ID) && kubectl port-forward svc/grafana 3000:3000 -n ml-workloads"
 
 run: ## Run the Python driver script using Docker
 	@echo "Running in Docker..."

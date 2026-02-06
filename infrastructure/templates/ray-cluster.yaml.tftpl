@@ -10,12 +10,16 @@ spec:
     serviceType: ClusterIP
     rayStartParams:
       dashboard-host: '0.0.0.0'
+      metrics-export-port: '8080'
     template:
       spec:
         serviceAccountName: ray-worker-sa
         containers:
         - name: ray-head
           image: ${artifact_registry}/${image_name}:${tag}
+          env:
+          - name: RAY_GRAFANA_HOST
+            value: http://grafana.ml-workloads.svc.cluster.local:3000
           resources:
             limits:
               cpu: "2"
@@ -61,6 +65,7 @@ spec:
               cpu: "4"
               memory: "16Gi"
               nvidia.com/gpu: "1"
+          ports:
           - containerPort: 8080
             name: metrics
           # Depending on GKE version/driver installation, might need tolerations

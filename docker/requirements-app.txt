@@ -1,0 +1,4 @@
+pandas
+hydra-core
+datasets
+kaggle

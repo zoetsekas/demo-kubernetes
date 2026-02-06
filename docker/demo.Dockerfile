@@ -1,7 +1,10 @@
 FROM rayproject/ray:2.9.0-py310-gpu
 
-COPY docker/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY docker/requirements-core.txt ./
+RUN pip install --no-cache-dir -r requirements-core.txt
+
+COPY docker/requirements-app.txt ./
+RUN pip install --no-cache-dir -r requirements-app.txt
 
 # Set up work directory
 WORKDIR /app

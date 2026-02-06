@@ -269,17 +269,17 @@ locals {
 }
 
 resource "kubernetes_manifest" "mlflow_deployment" {
-  manifest   = yamldecode(templatefile("${path.module}/mlflow-deployment.yaml.tftpl", local.template_vars))
+  manifest   = yamldecode(templatefile("${path.module}/templates/mlflow-deployment.yaml.tftpl", local.template_vars))
   depends_on = [kubernetes_service_account.ray_worker_sa]
 }
 
 resource "kubernetes_manifest" "mlflow_service" {
-  manifest   = yamldecode(templatefile("${path.module}/mlflow-service.yaml.tftpl", local.template_vars))
+  manifest   = yamldecode(templatefile("${path.module}/templates/mlflow-service.yaml.tftpl", local.template_vars))
   depends_on = [kubernetes_service_account.ray_worker_sa]
 }
 
 resource "kubernetes_manifest" "ray_cluster" {
-  manifest   = yamldecode(templatefile("${path.module}/ray-cluster.yaml.tftpl", local.template_vars))
+  manifest   = yamldecode(templatefile("${path.module}/templates/ray-cluster.yaml.tftpl", local.template_vars))
   depends_on = [kubernetes_service_account.ray_worker_sa]
 }
 
@@ -287,7 +287,7 @@ resource "kubernetes_manifest" "ray_cluster" {
 
 resource "kubernetes_manifest" "ray_head_monitoring" {
   manifest = {
-    apiVersion = "monitoring.gke.io/v1"
+    apiVersion = "monitoring.googleapis.com/v1"
     kind       = "PodMonitoring"
     metadata = {
       name      = "ray-head-monitoring"
@@ -320,7 +320,7 @@ resource "kubernetes_manifest" "ray_head_monitoring" {
 
 resource "kubernetes_manifest" "ray_worker_monitoring" {
   manifest = {
-    apiVersion = "monitoring.gke.io/v1"
+    apiVersion = "monitoring.googleapis.com/v1"
     kind       = "PodMonitoring"
     metadata = {
       name      = "ray-worker-monitoring"
@@ -339,6 +339,37 @@ resource "kubernetes_manifest" "ray_worker_monitoring" {
           interval = "30s"
         }
       ]
+    }
+  }
+}
+
+# --- Grafana Visualization ---
+
+resource "kubernetes_manifest" "grafana_deployment" {
+  manifest   = yamldecode(templatefile("${path.module}/templates/grafana-deployment.yaml.tftpl", local.template_vars))
+  depends_on = [kubernetes_namespace.ml_workloads]
+}
+
+resource "kubernetes_manifest" "grafana_service" {
+  manifest = {
+    apiVersion = "v1"
+    kind       = "Service"
+    metadata = {
+      name      = "grafana"
+      namespace = kubernetes_namespace.ml_workloads.metadata[0].name
+    }
+    spec = {
+      selector = {
+        app = "grafana"
+      }
+      ports = [
+        {
+          protocol   = "TCP"
+          port       = 3000
+          targetPort = 3000
+        }
+      ]
+      type = "ClusterIP"
     }
   }
 }

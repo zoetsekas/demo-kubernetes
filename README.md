@@ -13,8 +13,10 @@ A complete solution for standing up a Ray cluster on Google Kubernetes Engine (G
 ```text
 .
 ├── .vscode/               # VS Code launch and settings
+├── docs/                  # Architecture and User Guides
 ├── docker/                # Dockerfile and python requirements
-├── infrastructure/        # Terraform and Kubernetes manifests
+├── infrastructure/        # Terraform and Kubernetes templates
+│   └── templates/         # Parameterized YAML templates
 ├── src/
 │   └── demo/
 │       └── main.py        # Main driver and Ray Serve application
@@ -23,12 +25,27 @@ A complete solution for standing up a Ray cluster on Google Kubernetes Engine (G
 └── README.md
 ```
 
+## Local Development Environment
+To set up your local development environment, you will need the following tools:
+
+### Required Tools
+- **[Terraform](https://www.terraform.io/downloads.html)** (>= 1.0): For managing cloud infrastructure.
+- **[Google Cloud SDK (gcloud)](https://cloud.google.com/sdk/docs/install)**: For GCP authentication and project management.
+- **[kubectl](https://kubernetes.io/docs/tasks/tools/)**: For interacting with the GKE cluster.
+- **[Docker](https://docs.docker.com/get-docker/)**: For building and pushing container images.
+- **[Make](https://www.gnu.org/software/make/)**: For running automation targets defined in the `makefile`.
+
+### Recommended VS Code Extensions
+- **[HashiCorp Terraform](https://marketplace.visualstudio.com/items?itemName=HashiCorp.terraform)**: Syntax highlighting and autocompletion for `.tf` files.
+- **[Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python)**: For local scripts and remote debugging.
+- **[Kubernetes](https://marketplace.visualstudio.com/items?itemName=ms-kubernetes-tools.vscode-kubernetes-tools)**: For managing GKE resources directly from the editor.
+- **[YAML](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)**: For editing Kubernetes manifests and templates.
+- **[Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker)**: For managing local containers and images.
+
 ## Prerequisites
 - Google Cloud Project with billing enabled.
-- [Terraform](https://www.terraform.io/downloads.html) installed.
-- [gcloud SDK](https://cloud.google.com/sdk/docs/install) installed and authenticated.
-- [kubectl](https://kubernetes.io/docs/tasks/tools/) installed.
 - Kaggle API credentials (`KAGGLE_USERNAME`, `KAGGLE_KEY`).
+- GCP regions with `NVIDIA_L4_GPU` quota available (default: `us-central1`).
 
 ## Quick Start
 
