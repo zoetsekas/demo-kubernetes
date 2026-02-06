@@ -157,19 +157,22 @@ resource "google_container_node_pool" "gpu_pool_spot" {
   cluster  = google_container_cluster.ai_cluster.name
 
   autoscaling {
-    min_node_count = 0
+    min_node_count = 1
     max_node_count = 10
   }
 
-  node_locations = ["us-central1-a", "us-central1-c"]
+  node_locations = ["us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f"]
 
   node_config {
-    spot         = true
-    machine_type = "g2-standard-4"
+    spot         = true # Using on-demand to test provisioning
+    machine_type = "n1-standard-4"
 
     guest_accelerator {
-      type  = "nvidia-l4"
+      type  = "nvidia-tesla-t4"
       count = 1
+      gpu_driver_installation_config {
+        gpu_driver_version = "DEFAULT"
+      }
     }
 
 

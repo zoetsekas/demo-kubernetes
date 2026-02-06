@@ -87,7 +87,7 @@ def download_and_upload_data(dataset_cfg: DictConfig):
         "min_replicas": 2,
         "max_replicas": 4,
     },
-    ray_actor_options={"num_gpus": 0.5},  # Adjustable based on resource availability
+    ray_actor_options={"num_gpus": 0.5},  # Requires GPU - L4 spot nodes will autoscale
 )
 class EmbeddingModel:
     def __init__(self, model_name: str):

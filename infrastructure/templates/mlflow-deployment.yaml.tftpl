@@ -22,6 +22,8 @@ spec:
           value: "0"
         - name: RAY_DASHBOARD_FRONTEND_HOST_CHECK
           value: "false"
+        - name: MLFLOW_SERVER_ALLOWED_HOSTS
+          value: "*"
         command: ["mlflow", "server"]
         args: [
           "--backend-store-uri", "postgresql://ml_user:mlflow_pass@localhost:5432/mlflow_db",
