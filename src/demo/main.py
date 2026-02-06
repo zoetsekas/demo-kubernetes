@@ -114,12 +114,12 @@ class EmbeddingModel:
 @ray.remote
 def process_batch(batch_df):
     """Sends a batch of text to the Serve deployment for embedding."""
-    texts = batch_df["headline_text"].tolist()
-    # In a real scenario, you might want to batch these requests or use a handle that supports batching
-    # For simplicity, we loop or send async requests (this part can be optimized)
+    from ray import serve
 
-    # Getting the handle inside the remote function to ensure connectivity
-    handle = serve.get_deployment("EmbeddingModel").get_handle()
+    # Retrieve handle locally on the worker to avoid Client<->Worker handle serialization issues
+    handle = serve.get_app_handle("embedding_app")
+
+    texts = batch_df["headline_text"].tolist()
 
     results = []
     # Using ray.get to wait for results - in high scale, use async appropriately
@@ -165,7 +165,8 @@ def main(cfg: DictConfig):
 
     # 3. Deploy Model
     logger.info("Deploying Ray Serve application...")
-    serve.run(EmbeddingModel.bind(cfg.model.name))
+    # Name the app explicitly so workers can retrieve the handle
+    serve.run(EmbeddingModel.bind(cfg.model.name), name="embedding_app")
 
     # 4. Process Data
     logger.info("Reading data from GCS...")

@@ -157,7 +157,7 @@ resource "google_container_node_pool" "gpu_pool_spot" {
   cluster  = google_container_cluster.ai_cluster.name
 
   autoscaling {
-    min_node_count = 1
+    min_node_count = 0
     max_node_count = 10
   }
 
@@ -176,6 +176,25 @@ resource "google_container_node_pool" "gpu_pool_spot" {
     }
 
 
+    oauth_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+  }
+}
+
+# CPU Node Pool (Fallback/Burst)
+resource "google_container_node_pool" "cpu_pool" {
+  name     = "cpu-pool"
+  location = var.region
+  cluster  = google_container_cluster.ai_cluster.name
+
+  autoscaling {
+    min_node_count = 0
+    max_node_count = 10
+  }
+
+  node_locations = ["us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f"]
+
+  node_config {
+    machine_type = "e2-standard-4"
     oauth_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 }
