@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mlflow-server
+  namespace: ml-workloads
 spec:
   replicas: 1
   selector:
@@ -12,13 +13,14 @@ spec:
       labels:
         app: mlflow-server
     spec:
+      serviceAccountName: ray-worker-sa
       containers:
       - name: mlflow-server
-        image: rayproject/ray:2.9.0-py310 # Using Ray image as it has mlflow and python dependencies
+        image: ${artifact_registry}/${image_name}:${tag}
         command: ["mlflow", "server"]
         args: [
           "--backend-store-uri", "postgresql://ml_user:mlflow_pass@localhost:5432/mlflow_db",
-          "--default-artifact-root", "gs://YOUR-PROJECT-ID-mlflow-artifacts",
+          "--default-artifact-root", "gs://${project_id}-mlflow-artifacts",
           "--host", "0.0.0.0"
         ]
         ports:
@@ -27,19 +29,6 @@ spec:
         image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.1.0
         args:
           - "--port=5432"
-          - "YOUR-SQL-CONNECTION-NAME"
+          - "${sql_connection_name}"
         securityContext:
           runAsNonRoot: true
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mlflow-service
-spec:
-  selector:
-    app: mlflow-server
-  ports:
-  - protocol: TCP
-    port: 5000
-    targetPort: 5000
-  type: ClusterIP

@@ -3,7 +3,7 @@
     "configurations": [
         {
             "name": "Python: Ray Remote Demo",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/src/demo/main.py",
             "console": "integratedTerminal",

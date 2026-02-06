@@ -2,6 +2,7 @@ apiVersion: ray.io/v1
 kind: RayCluster
 metadata:
   name: ray-cluster
+  namespace: ml-workloads
   labels:
     app: ray-cluster
 spec:
@@ -11,9 +12,10 @@ spec:
       dashboard-host: '0.0.0.0'
     template:
       spec:
+        serviceAccountName: ray-worker-sa
         containers:
         - name: ray-head
-          image: us-central1-docker.pkg.dev/YOUR-PROJECT-ID/ml-images/ray-worker:latest
+          image: ${artifact_registry}/${image_name}:${tag}
           resources:
             limits:
               cpu: "2"
@@ -32,6 +34,12 @@ spec:
             name: client
           - containerPort: 8000 # Serve
             name: serve
+          - containerPort: 8080
+            name: metrics
+          - containerPort: 8081
+            name: as-metrics
+          - containerPort: 8082
+            name: dash-metrics
   workerGroupSpecs:
   - replicas: 1
     minReplicas: 1
@@ -40,9 +48,10 @@ spec:
     rayStartParams: {}
     template:
       spec:
+        serviceAccountName: ray-worker-sa
         containers:
         - name: ray-worker
-          image: us-central1-docker.pkg.dev/YOUR-PROJECT-ID/ml-images/ray-worker:latest  # Placeholder, will need sed/envsubst
+          image: ${artifact_registry}/${image_name}:${tag}
           resources:
             limits:
               cpu: "4"
@@ -52,6 +61,8 @@ spec:
               cpu: "4"
               memory: "16Gi"
               nvidia.com/gpu: "1"
+          - containerPort: 8080
+            name: metrics
           # Depending on GKE version/driver installation, might need tolerations
         nodeSelector:
             iam.gke.io/gke-metadata-server-enabled: "true"

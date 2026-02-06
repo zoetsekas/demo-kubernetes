@@ -7,6 +7,10 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 6.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
+    }
   }
 }
 
@@ -32,6 +36,18 @@ variable "db_password" {
   type        = string
   sensitive   = true
   default     = "mlflow_pass"
+}
+
+variable "image_name" {
+  description = "Docker image name"
+  type        = string
+  default     = "ray-worker"
+}
+
+variable "tag" {
+  description = "Docker image tag"
+  type        = string
+  default     = "latest"
 }
 
 # --- Enable APIs ---
@@ -145,6 +161,8 @@ resource "google_container_node_pool" "gpu_pool_spot" {
     max_node_count = 10
   }
 
+  node_locations = ["us-central1-a", "us-central1-c"]
+
   node_config {
     spot         = true
     machine_type = "g2-standard-4"
@@ -154,11 +172,6 @@ resource "google_container_node_pool" "gpu_pool_spot" {
       count = 1
     }
 
-    taint {
-      key    = "nvidia.com/gpu"
-      value  = "true"
-      effect = "NO_SCHEDULE"
-    }
 
     oauth_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
@@ -214,4 +227,118 @@ output "cluster_location" {
 output "sql_connection_name" {
   description = "The connection name of the Cloud SQL instance"
   value       = google_sql_database_instance.ml_db_instance.connection_name
+}
+
+# --- Kubernetes Configuration ---
+
+data "google_client_config" "default" {}
+
+provider "kubernetes" {
+  host                   = "https://${google_container_cluster.ai_cluster.endpoint}"
+  token                  = data.google_client_config.default.access_token
+  cluster_ca_certificate = base64decode(google_container_cluster.ai_cluster.master_auth[0].cluster_ca_certificate)
+}
+
+# Resource to manage Namespace and ServiceAccount
+resource "kubernetes_namespace" "ml_workloads" {
+  metadata {
+    name = "ml-workloads"
+  }
+}
+
+resource "kubernetes_service_account" "ray_worker_sa" {
+  metadata {
+    name      = "ray-worker-sa"
+    namespace = kubernetes_namespace.ml_workloads.metadata[0].name
+    annotations = {
+      "iam.gke.io/gcp-service-account" = google_service_account.ml_platform_sa.email
+    }
+  }
+}
+
+# --- Parameterized Manifests ---
+
+locals {
+  template_vars = {
+    project_id          = var.project_id
+    artifact_registry   = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.ml_images.repository_id}"
+    image_name          = var.image_name
+    tag                 = var.tag
+    sql_connection_name = google_sql_database_instance.ml_db_instance.connection_name
+  }
+}
+
+resource "kubernetes_manifest" "mlflow_deployment" {
+  manifest   = yamldecode(templatefile("${path.module}/mlflow-deployment.yaml.tftpl", local.template_vars))
+  depends_on = [kubernetes_service_account.ray_worker_sa]
+}
+
+resource "kubernetes_manifest" "mlflow_service" {
+  manifest   = yamldecode(templatefile("${path.module}/mlflow-service.yaml.tftpl", local.template_vars))
+  depends_on = [kubernetes_service_account.ray_worker_sa]
+}
+
+resource "kubernetes_manifest" "ray_cluster" {
+  manifest   = yamldecode(templatefile("${path.module}/ray-cluster.yaml.tftpl", local.template_vars))
+  depends_on = [kubernetes_service_account.ray_worker_sa]
+}
+
+# --- Prometheus Monitoring (Google Managed Prometheus) ---
+
+resource "kubernetes_manifest" "ray_head_monitoring" {
+  manifest = {
+    apiVersion = "monitoring.gke.io/v1"
+    kind       = "PodMonitoring"
+    metadata = {
+      name      = "ray-head-monitoring"
+      namespace = kubernetes_namespace.ml_workloads.metadata[0].name
+    }
+    spec = {
+      selector = {
+        matchLabels = {
+          "ray.io/node-type" = "head"
+          "ray.io/cluster"   = "ray-cluster"
+        }
+      }
+      endpoints = [
+        {
+          port     = "metrics"
+          interval = "30s"
+        },
+        {
+          port     = "as-metrics"
+          interval = "30s"
+        },
+        {
+          port     = "dash-metrics"
+          interval = "30s"
+        }
+      ]
+    }
+  }
+}
+
+resource "kubernetes_manifest" "ray_worker_monitoring" {
+  manifest = {
+    apiVersion = "monitoring.gke.io/v1"
+    kind       = "PodMonitoring"
+    metadata = {
+      name      = "ray-worker-monitoring"
+      namespace = kubernetes_namespace.ml_workloads.metadata[0].name
+    }
+    spec = {
+      selector = {
+        matchLabels = {
+          "ray.io/node-type" = "worker"
+          "ray.io/cluster"   = "ray-cluster"
+        }
+      }
+      endpoints = [
+        {
+          port     = "metrics"
+          interval = "30s"
+        }
+      ]
+    }
+  }
 }

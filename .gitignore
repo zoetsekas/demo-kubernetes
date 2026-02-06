@@ -196,4 +196,10 @@ _override.tf
 _override.tf.json
 .terraformrc
 terraform.rc
+.terraform.lock.hcl
+*.tmp.yaml
+*.tf.json
+*.tfstate.backup
+*.hcl
+.vscode/
 
