@@ -1,6 +1,6 @@
 FROM rayproject/ray:2.9.0-py310-gpu
 
-COPY requirements.txt .
+COPY docker/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Set up work directory

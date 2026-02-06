@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow-server
+  template:
+    metadata:
+      labels:
+        app: mlflow-server
+    spec:
+      containers:
+      - name: mlflow-server
+        image: rayproject/ray:2.9.0-py310 # Using Ray image as it has mlflow and python dependencies
+        command: ["mlflow", "server"]
+        args: [
+          "--backend-store-uri", "postgresql://ml_user:mlflow_pass@localhost:5432/mlflow_db",
+          "--default-artifact-root", "gs://YOUR-PROJECT-ID-mlflow-artifacts",
+          "--host", "0.0.0.0"
+        ]
+        ports:
+        - containerPort: 5000
+      - name: cloud-sql-proxy
+        image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.1.0
+        args:
+          - "--port=5432"
+          - "YOUR-SQL-CONNECTION-NAME"
+        securityContext:
+          runAsNonRoot: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow-service
+spec:
+  selector:
+    app: mlflow-server
+  ports:
+  - protocol: TCP
+    port: 5000
+    targetPort: 5000
+  type: ClusterIP

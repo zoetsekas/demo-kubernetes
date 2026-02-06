@@ -1,0 +1,24 @@
+[project]
+name = "demo-kubernetes-ray"
+version = "0.1.0"
+description = "A demo for standing up a Ray cluster on GKE for headline embeddings."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Zoe Tsekas" }]
+dependencies = [
+    "ray[serve,default]>=2.9.0",
+    "transformers>=4.35.0",
+    "torch>=2.1.0",
+    "google-cloud-storage>=2.13.0",
+    "kaggle>=1.5.16",
+    "pandas>=2.1.0",
+    "sentence-transformers>=2.2.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

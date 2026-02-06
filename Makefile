@@ -5,7 +5,7 @@ REPO_NAME ?= ml-images
 TAG ?= latest
 ARTIFACT_REGISTRY = $(REGION)-docker.pkg.dev/$(PROJECT_ID)/$(REPO_NAME)
 
-.PHONY: help init plan apply destroy build push run deploy-ray connect
+.PHONY: help init plan apply destroy build push run deploy-ray connect deploy-mlflow connect-mlflow
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -23,7 +23,7 @@ destroy: ## Destroy Terraform resources
 	cd infrastructure && terraform destroy -var="project_id=$(PROJECT_ID)" -var="region=$(REGION)" -auto-approve
 
 build: ## Build Docker image
-	docker build -t $(ARTIFACT_REGISTRY)/$(IMAGE_NAME):$(TAG) -f docker/demo.Dockerfile docker/
+	docker build -t $(ARTIFACT_REGISTRY)/$(IMAGE_NAME):$(TAG) -f docker/demo.Dockerfile .
 
 push: ## Push Docker image to Artifact Registry
 	gcloud auth configure-docker $(REGION)-docker.pkg.dev
@@ -39,6 +39,17 @@ connect: ## Port forward to Ray Cluster (keeps running in foreground)
 	@echo "Ray Dashboard: localhost:8265"
 	kubectl port-forward svc/ray-cluster-head-svc 10001:10001 8265:8265
 
+deploy-mlflow: ## Deploy MLflow Server (substituting project-id and sql-connection)
+	@echo "Deploying MLflow Server..."
+	$(eval SQL_CONN := $(shell terraform -chdir=infrastructure output -raw sql_connection_name))
+	@sed -e "s|YOUR-PROJECT-ID|$(PROJECT_ID)|g" \
+		 -e "s|YOUR-SQL-CONNECTION-NAME|$(SQL_CONN)|g" \
+		 infrastructure/mlflow-server.yaml | kubectl apply -f -
+
+connect-mlflow: ## Port forward to MLflow Server UI
+	@echo "Port forwarding to MLflow Service (localhost:5000)..."
+	kubectl port-forward svc/mlflow-service 5000:5000
+
 run: ## Run the Python driver script using Docker
 	@echo "Running in Docker..."
 	@echo "Ensure KAGGLE_USERNAME and KAGGLE_KEY are set in your environment."
@@ -50,5 +61,7 @@ run: ## Run the Python driver script using Docker
 		-e KAGGLE_KEY=$(KAGGLE_KEY) \
 		-e GOOGLE_CLOUD_PROJECT=$(PROJECT_ID) \
 		-e RAY_ADDRESS=ray://host.docker.internal:10001 \
+		-e MLFLOW_TRACKING_URI=http://host.docker.internal:5000 \
 		$(ARTIFACT_REGISTRY)/$(IMAGE_NAME):$(TAG) \
 		python src/demo/main.py
+

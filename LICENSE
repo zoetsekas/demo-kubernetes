@@ -1,41 +1,21 @@
-PROPRIETARY SOFTWARE LICENSE
+MIT License
 
-Copyright (c) 2025 Artificial Intelligent Agents. All rights reserved.
+Copyright (c) 2026 Artificial Intelligent Agents
 
-This software and associated documentation files (the "Software") are the proprietary 
-and confidential property of Artificial Intelligent Agents ("the Company").
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-NOTICE: All information contained herein is, and remains the property of the Company 
-and its suppliers, if any. The intellectual and technical concepts contained herein 
-are proprietary to the Company and its suppliers and may be covered by U.S. and 
-Foreign Patents, patents in process, and are protected by trade secret or copyright law.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-Dissemination of this information or reproduction of this material is strictly 
-forbidden unless prior written permission is obtained from the Company.
-
-RESTRICTIONS:
-
-1. The Software is licensed, not sold. No title to or ownership of the Software is 
-   transferred to you.
-
-2. You may not:
-   - Copy, modify, or create derivative works of the Software
-   - Distribute, transfer, sublicense, lease, lend, or rent the Software
-   - Reverse engineer, decompile, or disassemble the Software
-   - Remove or alter any proprietary notices or labels on the Software
-   - Use the Software for any commercial purpose without explicit authorization
-
-3. This Software is provided "AS IS" without warranty of any kind, either express or 
-   implied, including but not limited to the implied warranties of merchantability 
-   and fitness for a particular purpose.
-
-4. In no event shall the Company be liable for any damages whatsoever arising out of 
-   the use of or inability to use the Software.
-
-5. This license is effective until terminated. Your rights under this license will 
-   terminate automatically without notice if you fail to comply with any of its terms.
-
-For licensing inquiries, please contact Artificial Intelligent Agents.
-
-UNAUTHORIZED ACCESS, USE, OR DISTRIBUTION IS PROHIBITED AND MAY RESULT IN SEVERE 
-CIVIL AND CRIMINAL PENALTIES.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

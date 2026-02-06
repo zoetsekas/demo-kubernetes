@@ -5,3 +5,5 @@ google-cloud-storage
 kaggle
 pandas
 sentence-transformers
+mlflow
+psycopg2-binary

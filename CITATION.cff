@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Tsekas
+    given-names: Zoe
+title: "GKE Ray Embedding Pipeline"
+version: 0.1.0
+date-released: 2026-02-06
+url: "https://github.com/zoetsekas/demo-kubernetes-ray"

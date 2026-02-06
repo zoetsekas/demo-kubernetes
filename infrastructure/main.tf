@@ -27,8 +27,12 @@ variable "region" {
   type        = string
   default     = "us-central1"
 }
-
-
+variable "db_password" {
+  description = "Password for the Cloud SQL user"
+  type        = string
+  sensitive   = true
+  default     = "mlflow_pass"
+}
 
 # --- Enable APIs ---
 
@@ -36,6 +40,7 @@ locals {
   services = [
     "container.googleapis.com",
     "artifactregistry.googleapis.com",
+    "sqladmin.googleapis.com",
     "aiplatform.googleapis.com",
     "compute.googleapis.com",
     "iam.googleapis.com",
@@ -74,8 +79,30 @@ resource "google_storage_bucket" "mlflow_artifacts" {
   location      = var.region
   force_destroy = true
 }
+# --- Cloud SQL (PostgreSQL) ---
 
+resource "google_sql_database_instance" "ml_db_instance" {
+  name             = "ml-db-instance"
+  database_version = "POSTGRES_15"
+  region           = var.region
 
+  settings {
+    tier = "db-f1-micro"
+  }
+  deletion_protection = false
+  depends_on          = [google_project_service.enabled_apis]
+}
+
+resource "google_sql_database" "mlflow_db" {
+  name     = "mlflow_db"
+  instance = google_sql_database_instance.ml_db_instance.name
+}
+
+resource "google_sql_user" "ml_user" {
+  name     = "ml_user"
+  instance = google_sql_database_instance.ml_db_instance.name
+  password = var.db_password
+}
 
 # --- GKE Cluster (Ray Enabled) ---
 
@@ -152,6 +179,12 @@ resource "google_project_iam_member" "storage_admin" {
   member  = "serviceAccount:${google_service_account.ml_platform_sa.email}"
 }
 
+resource "google_project_iam_member" "sql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.ml_platform_sa.email}"
+}
+
 
 
 # Workload Identity Binding
@@ -176,4 +209,9 @@ output "cluster_name" {
 output "cluster_location" {
   description = "The location of the GKE cluster"
   value       = google_container_cluster.ai_cluster.location
+}
+
+output "sql_connection_name" {
+  description = "The connection name of the Cloud SQL instance"
+  value       = google_sql_database_instance.ml_db_instance.connection_name
 }
