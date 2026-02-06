@@ -30,26 +30,43 @@ BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", f"{PROJECT_ID}-ml-data")
 def download_and_upload_data(dataset_cfg: DictConfig):
     """Downloads dataset from Kaggle or HF and uploads to GCS."""
     source_type = dataset_cfg.source_type
+    gcs_filename = "active_dataset.csv"
 
+    # Determine local filename
+    if source_type == "kaggle":
+        local_file = dataset_cfg.kaggle.csv_filename
+    elif source_type == "huggingface":
+        hf_path = dataset_cfg.huggingface.path
+        local_file = f"{hf_path.replace('/', '_')}.csv"
+    else:
+        raise ValueError(f"Unknown source_type: {source_type}")
+
+    # Check GCS before downloading
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(BUCKET_NAME)
+    blob = bucket.blob(f"raw/{gcs_filename}")
+
+    if blob.exists():
+        logger.info(
+            f"Dataset found in GCS (gs://{BUCKET_NAME}/raw/{gcs_filename}). Skipping download from source."
+        )
+        return local_file, gcs_filename
+
+    # Proceed with download if not in GCS
     if source_type == "kaggle":
         kaggle_path = dataset_cfg.kaggle.kaggle_path
-        csv_filename = dataset_cfg.kaggle.csv_filename
-
         logger.info(f"Downloading {kaggle_path} from Kaggle...")
         kaggle.api.authenticate()
         kaggle.api.dataset_download_files(kaggle_path, path=".", unzip=True)
 
-        local_file = csv_filename
     elif source_type == "huggingface":
         hf_path = dataset_cfg.huggingface.path
         hf_split = dataset_cfg.huggingface.split
         hf_column = dataset_cfg.huggingface.column
-        local_file = f"{hf_path.replace('/', '_')}.csv"
 
         logger.info(f"Loading {hf_path} ({hf_split}) from Hugging Face...")
         dataset = datasets.load_dataset(hf_path, split=hf_split, streaming=True)
 
-        # Take nrows and convert to expected format
         rows = []
         for i, row in enumerate(dataset):
             if i >= dataset_cfg.nrows:
@@ -59,20 +76,13 @@ def download_and_upload_data(dataset_cfg: DictConfig):
         logger.info(f"Converting HF dataset to {local_file}...")
         df = pd.DataFrame(rows)
         df.to_csv(local_file, index=False)
-    else:
-        raise ValueError(f"Unknown source_type: {source_type}")
 
     if not os.path.exists(local_file):
         raise FileNotFoundError(
             f"Could not find local file {local_file} after ingestion."
         )
 
-    # We use a consistent filename in GCS for the processing step
-    gcs_filename = "active_dataset.csv"
     logger.info(f"Uploading {local_file} to gs://{BUCKET_NAME}/raw/{gcs_filename}...")
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(BUCKET_NAME)
-    blob = bucket.blob(f"raw/{gcs_filename}")
     blob.upload_from_filename(local_file)
     logger.info("Upload complete.")
 
@@ -87,7 +97,6 @@ def download_and_upload_data(dataset_cfg: DictConfig):
         "min_replicas": 2,
         "max_replicas": 4,
     },
-    ray_actor_options={"num_gpus": 0.5},  # Requires GPU - L4 spot nodes will autoscale
 )
 class EmbeddingModel:
     def __init__(self, model_name: str):

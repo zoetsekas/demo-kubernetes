@@ -52,6 +52,8 @@ run: ## Run the Python driver script using Docker
 	docker run -it --rm \
 		-v "$(CURDIR)/src:/app/src" \
 		-v "$(APPDATA)/gcloud:/root/.config/gcloud" \
+		-v "$(APPDATA)/gcloud:/tmp/gcp_creds" \
+		-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_creds/application_default_credentials.json \
 		-e PROJECT_ID=$(PROJECT_ID) \
 		-e KAGGLE_USERNAME=$(KAGGLE_USERNAME) \
 		-e KAGGLE_KEY=$(KAGGLE_KEY) \
