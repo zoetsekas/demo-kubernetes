@@ -63,5 +63,5 @@ run: ## Run the Python driver script using Docker
 		-e RAY_ADDRESS=ray://host.docker.internal:10001 \
 		-e MLFLOW_TRACKING_URI=http://host.docker.internal:5000 \
 		$(ARTIFACT_REGISTRY)/$(IMAGE_NAME):$(TAG) \
-		python src/demo/main.py
+		python src/demo/main.py $(HYDRA_ARGS)
 

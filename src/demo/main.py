@@ -8,6 +8,9 @@ from sentence_transformers import SentenceTransformer
 import kaggle
 import mlflow
 import logging
+import hydra
+from omegaconf import DictConfig, OmegaConf
+import datasets
 
 # Setup logging
 logging.basicConfig(
@@ -17,30 +20,63 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configure settings
+# Configure settings from environment for infrastructure
 PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT", "your-project-id")
 BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", f"{PROJECT_ID}-ml-data")
-KAGGLE_DATASET = "therohk/million-headlines"
-CSV_FILENAME = "abcnews-date-text.csv"
 
 # --- 1. Data Ingestion ---
 
 
-def download_and_upload_data():
-    """Downloads dataset from Kaggle and uploads to GCS."""
-    logger.info(f"Downloading {KAGGLE_DATASET} from Kaggle...")
-    kaggle.api.authenticate()
-    kaggle.api.dataset_download_files(KAGGLE_DATASET, path=".", unzip=True)
+def download_and_upload_data(dataset_cfg: DictConfig):
+    """Downloads dataset from Kaggle or HF and uploads to GCS."""
+    source_type = dataset_cfg.source_type
 
-    if not os.path.exists(CSV_FILENAME):
-        raise FileNotFoundError(f"Could not find {CSV_FILENAME} after download.")
+    if source_type == "kaggle":
+        kaggle_path = dataset_cfg.kaggle.kaggle_path
+        csv_filename = dataset_cfg.kaggle.csv_filename
 
-    logger.info(f"Uploading {CSV_FILENAME} to gs://{BUCKET_NAME}...")
+        logger.info(f"Downloading {kaggle_path} from Kaggle...")
+        kaggle.api.authenticate()
+        kaggle.api.dataset_download_files(kaggle_path, path=".", unzip=True)
+
+        local_file = csv_filename
+    elif source_type == "huggingface":
+        hf_path = dataset_cfg.huggingface.path
+        hf_split = dataset_cfg.huggingface.split
+        hf_column = dataset_cfg.huggingface.column
+        local_file = f"{hf_path.replace('/', '_')}.csv"
+
+        logger.info(f"Loading {hf_path} ({hf_split}) from Hugging Face...")
+        dataset = datasets.load_dataset(hf_path, split=hf_split, streaming=True)
+
+        # Take nrows and convert to expected format
+        rows = []
+        for i, row in enumerate(dataset):
+            if i >= dataset_cfg.nrows:
+                break
+            rows.append({"headline_text": row[hf_column]})
+
+        logger.info(f"Converting HF dataset to {local_file}...")
+        df = pd.DataFrame(rows)
+        df.to_csv(local_file, index=False)
+    else:
+        raise ValueError(f"Unknown source_type: {source_type}")
+
+    if not os.path.exists(local_file):
+        raise FileNotFoundError(
+            f"Could not find local file {local_file} after ingestion."
+        )
+
+    # We use a consistent filename in GCS for the processing step
+    gcs_filename = "active_dataset.csv"
+    logger.info(f"Uploading {local_file} to gs://{BUCKET_NAME}/raw/{gcs_filename}...")
     storage_client = storage.Client()
     bucket = storage_client.bucket(BUCKET_NAME)
-    blob = bucket.blob(f"raw/{CSV_FILENAME}")
-    blob.upload_from_filename(CSV_FILENAME)
+    blob = bucket.blob(f"raw/{gcs_filename}")
+    blob.upload_from_filename(local_file)
     logger.info("Upload complete.")
+
+    return local_file, gcs_filename
 
 
 # --- 2. Ray Serve Deployment ---
@@ -54,9 +90,9 @@ def download_and_upload_data():
     ray_actor_options={"num_gpus": 0.5},  # Adjustable based on resource availability
 )
 class EmbeddingModel:
-    def __init__(self):
-        logger.info("Loading Sentence Transformer model...")
-        self.model = SentenceTransformer("all-MiniLM-L6-v2")
+    def __init__(self, model_name: str):
+        logger.info(f"Loading Sentence Transformer model: {model_name}...")
+        self.model = SentenceTransformer(model_name)
 
     async def __call__(self, text: str):
         embeddings = self.model.encode(text)
@@ -84,26 +120,33 @@ def process_batch(batch_df):
     return pd.DataFrame({"text": texts, "embedding": embeddings})
 
 
-def main():
+@hydra.main(version_base=None, config_path="conf", config_name="config")
+def main(cfg: DictConfig):
+    logger.info(f"Configuration:\n{OmegaConf.to_yaml(cfg)}")
+
     # 0. Setup MLflow
-    mlflow_tracking_uri = os.environ.get(
-        "MLFLOW_TRACKING_URI", "http://mlflow-service:5000"
-    )
+    mlflow_tracking_uri = os.environ.get("MLFLOW_TRACKING_URI", cfg.mlflow.tracking_uri)
     mlflow.set_tracking_uri(mlflow_tracking_uri)
-    mlflow.set_experiment("Ray-GKE-Embeddings")
+    mlflow.set_experiment(cfg.mlflow.experiment_name)
 
     # 1. Ingest Data
-    # Ensure KAGGLE_USERNAME and KAGGLE_KEY are set in environment
+    # Ensure KAGGLE_USERNAME and KAGGLE_KEY are set in environment if using Kaggle
     try:
-        download_and_upload_data()
+        local_file, gcs_filename = download_and_upload_data(cfg.dataset)
     except Exception as e:
         logger.error(f"Data ingestion skipped or failed: {e}")
         # Proceeding assuming data might already be there for dev loop
+        local_file = (
+            cfg.dataset.kaggle.csv_filename
+            if cfg.dataset.source_type == "kaggle"
+            else f"{cfg.dataset.huggingface.path.replace('/', '_')}.csv"
+        )
+        gcs_filename = "active_dataset.csv"
 
     # 2. Connect to Ray Cluster
     # If RAY_ADDRESS env var is set (e.g. "ray://localhost:10001"), it will connect to that.
     # Otherwise it connects to local cluster (if running on head node) or starts a local one.
-    ray_address = os.environ.get("RAY_ADDRESS")
+    ray_address = os.environ.get("RAY_ADDRESS", cfg.ray.address)
     if ray_address:
         logger.info(f"Connecting to Ray cluster at {ray_address}...")
         ray.init(address=ray_address)
@@ -113,35 +156,36 @@ def main():
 
     # 3. Deploy Model
     logger.info("Deploying Ray Serve application...")
-    serve.run(EmbeddingModel.bind())
+    serve.run(EmbeddingModel.bind(cfg.model.name))
 
     # 4. Process Data
     logger.info("Reading data from GCS...")
     # NOTE: Efficiently reading GCS in chunks with Pandas
     storage_client = storage.Client()
     bucket = storage_client.bucket(BUCKET_NAME)
-    blob = bucket.blob(f"raw/{CSV_FILENAME}")
+    blob = bucket.blob(f"raw/{gcs_filename}")
 
     # For demo purpose, download locally to stream (or use gcsfs)
-    if not os.path.exists(CSV_FILENAME):
-        blob.download_to_filename(CSV_FILENAME)
+    # Use the local file from ingestion if it exists, otherwise download from GCS
+    if not os.path.exists(local_file):
+        logger.info(f"Downloading {gcs_filename} from GCS...")
+        blob.download_to_filename(local_file)
 
     # Process in chunks using Ray
-    chunk_size = 1000
+    chunk_size = cfg.ray.chunk_size
     futures = []
 
     logger.info("Submitting processing tasks...")
-    # Read only first 10000 rows for demo speed
-    for chunk in pd.read_csv(CSV_FILENAME, chunksize=chunk_size, nrows=10000):
+    # Read only first nrows rows
+    for chunk in pd.read_csv(local_file, chunksize=chunk_size, nrows=cfg.dataset.nrows):
+        # The ingestion logic ensures the column is always 'headline_text'
         futures.append(process_batch.remote(chunk))
 
     logger.info("Waiting for results...")
     start_time = time.time()
 
     with mlflow.start_run():
-        mlflow.log_param("model_name", "all-MiniLM-L6-v2")
-        mlflow.log_param("chunk_size", chunk_size)
-        mlflow.log_param("dataset", KAGGLE_DATASET)
+        mlflow.log_params(OmegaConf.to_container(cfg, resolve=True))
 
         results = ray.get(futures)
         final_df = pd.concat(results)
@@ -170,4 +214,5 @@ def main():
 
 
 if __name__ == "__main__":
+    # We call main() without arguments, Hydra handles the rest
     main()

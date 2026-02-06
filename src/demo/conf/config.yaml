@@ -1,0 +1,21 @@
+dataset:
+  source_type: "kaggle" # "kaggle" or "huggingface"
+  kaggle:
+    kaggle_path: "therohk/million-headlines"
+    csv_filename: "abcnews-date-text.csv"
+  huggingface:
+    path: "imdb"
+    split: "train"
+    column: "text"
+  nrows: 10000
+
+ray:
+  chunk_size: 1000
+  address: null # Will use RAY_ADDRESS env var if null
+
+model:
+  name: "all-MiniLM-L6-v2"
+
+mlflow:
+  experiment_name: "Ray-GKE-Embeddings"
+  tracking_uri: "http://mlflow-service:5000"
