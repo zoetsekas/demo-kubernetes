@@ -58,5 +58,6 @@ run: ## Run the Python driver script using Docker
 		-e GOOGLE_CLOUD_PROJECT=$(PROJECT_ID) \
 		-e RAY_ADDRESS=ray://host.docker.internal:10001 \
 		-e MLFLOW_TRACKING_URI=http://host.docker.internal:5000 \
+		-e RAY_CLIENT_REBIND_ATTACK_PROTECTION_ENABLED=0 \
 		$(ARTIFACT_REGISTRY)/$(IMAGE_NAME):$(TAG) \
 		python src/demo/main.py $(HYDRA_ARGS)

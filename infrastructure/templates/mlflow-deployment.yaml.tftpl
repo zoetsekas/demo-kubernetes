@@ -17,6 +17,11 @@ spec:
       containers:
       - name: mlflow-server
         image: ${artifact_registry}/${image_name}:${tag}
+        env:
+        - name: RAY_CLIENT_REBIND_ATTACK_PROTECTION_ENABLED
+          value: "0"
+        - name: RAY_DASHBOARD_FRONTEND_HOST_CHECK
+          value: "false"
         command: ["mlflow", "server"]
         args: [
           "--backend-store-uri", "postgresql://ml_user:mlflow_pass@localhost:5432/mlflow_db",

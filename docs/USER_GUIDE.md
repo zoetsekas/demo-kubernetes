@@ -46,7 +46,7 @@ make connect-mlflow
 Visit `http://localhost:5000` to view experiment metrics, throughput logs, and processed dataset summaries.
 
 ## 5. Scaling and Maintenance
-The `infrastructure/ray-cluster.yaml` defines the cluster size. You can adjust horizontal scaling by changing `minReplicas` and `maxReplicas` in the `workerGroupSpecs`.
+The `infrastructure/templates/ray-cluster.yaml.tftpl` defines the cluster size. You can adjust horizontal scaling by changing `minReplicas` and `maxReplicas` in the `workerGroupSpecs`.
 
 ### Spot Instances
 The GKE node pool is configured to use **Spot Instances** by default to minimize costs. If you need 100% availability, disable `spot = true` in `infrastructure/main.tf`.

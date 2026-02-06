@@ -57,11 +57,15 @@ make apply PROJECT_ID=your-project-id
 ```
 
 ### 2. Build and Deploy
-Build the custom Ray worker image and deploy the cluster:
+Build the custom Ray worker image:
 ```bash
 make build PROJECT_ID=your-project-id
 make push PROJECT_ID=your-project-id
-make deploy-ray PROJECT_ID=your-project-id
+```
+
+Deploy everything via Terraform:
+```bash
+make apply PROJECT_ID=your-project-id
 ```
 
 ### 3. Run the Pipeline

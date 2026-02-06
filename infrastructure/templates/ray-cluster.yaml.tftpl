@@ -20,6 +20,10 @@ spec:
           env:
           - name: RAY_GRAFANA_HOST
             value: http://grafana.ml-workloads.svc.cluster.local:3000
+          - name: RAY_CLIENT_REBIND_ATTACK_PROTECTION_ENABLED
+            value: "0"
+          - name: RAY_DASHBOARD_FRONTEND_HOST_CHECK
+            value: "false"
           resources:
             limits:
               cpu: "2"
